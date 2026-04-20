@@ -323,6 +323,7 @@ body[data-phase="climax"] .cluster-headers,
 body[data-phase="remix"] .cluster-headers {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 .cluster-header {

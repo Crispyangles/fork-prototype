@@ -290,7 +290,7 @@
   // ----- Phase: clustered ----------------------------------------------
   function enterClustered() {
     body.dataset.phase = 'clustered';
-    applyLayout('clustered');
+    requestAnimationFrame(() => applyLayout('clustered'));
   }
 
   // ----- Phase: pain ----------------------------------------------------
@@ -311,7 +311,7 @@
       if (panel && typeof stage.scrollTo === 'function') {
         stage.scrollTo({ top: stage.scrollHeight, behavior: 'smooth' });
       }
-    }, 450);
+    }, 650);
   }
 
   // ----- Phase: climax (gap card) --------------------------------------
@@ -370,22 +370,23 @@
   ];
 
   let running = false;
+  let currentPhaseIndex = 0;
 
   async function runLoop() {
     if (running) return;
     if (mode === 'real') return;
     running = true;
     while (running) {
-      for (const phase of PHASES) {
-        if (mode === 'real') { running = false; break; }
-        try {
-          await Promise.resolve(phase.enter());
-        } catch (err) {
-          console.error('Phase error', phase.name, err);
-        }
-        await new Promise((r) => setTimeout(r, phase.durationMs));
-        if (!running) break;
+      const phase = PHASES[currentPhaseIndex];
+      if (mode === 'real') { running = false; break; }
+      try {
+        await Promise.resolve(phase.enter());
+      } catch (err) {
+        console.error('Phase error', phase.name, err);
       }
+      await new Promise((r) => setTimeout(r, phase.durationMs));
+      if (!running) break;
+      currentPhaseIndex = (currentPhaseIndex + 1) % PHASES.length;
     }
   }
 
@@ -886,9 +887,20 @@
   if (overlayClose)    overlayClose.addEventListener('click', closeOverlay);
   if (overlayBackdrop) overlayBackdrop.addEventListener('click', closeOverlay);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay && !overlay.hidden) {
-      e.preventDefault();
-      closeOverlay();
+    if (e.key === 'Escape') {
+      if (overlay && !overlay.hidden) {
+        e.preventDefault();
+        closeOverlay();
+      } else if (mode === 'real' && body.dataset.phase !== 'empty') {
+        e.preventDefault();
+        searchInput.value = '';
+        clearFilters();
+        hideHistory();
+        body.dataset.phase = 'empty';
+        searchStatus.textContent = '';
+        cardsContainer.innerHTML = '';
+        if (loadMoreBtn) loadMoreBtn.hidden = true;
+      }
     }
   });
 
