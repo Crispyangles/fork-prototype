@@ -1986,6 +1986,117 @@ body[data-phase="getting-started"] #discover { display: none !important; }
   margin: 0;
 }
 
+/* ---- "Before you start" toggle button --------------------------------- */
+/* position:relative + z-index:2 lifts this above .gs-card-openlink overlay */
+.gs-card-learnbtn {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: rgba(255,255,255,0.03);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  letter-spacing: -0.005em;
+}
+.gs-card-learnbtn:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+}
+.gs-card-learnbtn[aria-expanded="true"] {
+  color: var(--amber);
+  border-color: rgba(245,169,58,0.3);
+  background: rgba(245,169,58,0.05);
+}
+
+/* ---- Expanded "Before you start" panel -------------------------------- */
+.gs-card-learn {
+  position: relative;
+  z-index: 2;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+}
+.gs-card-learn[hidden] { display: none; }
+
+/* Browser-fix badge */
+.gs-browser-fix {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+}
+.gs-browser-fix-badge {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--teal);
+  background: rgba(62,197,197,0.09);
+  border: 0.5px solid rgba(62,197,197,0.25);
+  border-radius: 999px;
+  padding: 2px 9px;
+  margin-bottom: 6px;
+}
+.gs-browser-fix-desc {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Concept list */
+.gs-concept-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gs-concept-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gs-concept-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.gs-concept-desc {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+.gs-concept-link {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  margin-top: 2px;
+  transition: color 0.15s;
+}
+.gs-concept-link:hover { color: #8fb6ff; text-decoration: underline; }
+
+.gs-concept-fallback {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0;
+  font-style: italic;
+}
+
 @media (max-width: 760px) {
   .gs-lang-chips { gap: 6px; }
   .gs-chip { font-size: 12px; padding: 5px 10px; }

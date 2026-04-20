@@ -1336,15 +1336,39 @@
   function createGSCard(issue) {
     const el = document.createElement('div');
     el.className = 'gs-card';
+
     const diffBadge = issue.difficulty === 'easy'
       ? '<span class="gs-diff gs-diff-easy" title="Easiest — docs, typos, or small text fixes">🟢 Easiest</span>'
       : '<span class="gs-diff gs-diff-medium" title="Needs a bit of code reading">🟡 A bit more</span>';
+
     const labelsHtml = issue.labels.map((l) =>
       `<span class="gs-label" title="${escapeHtml(l.real)}">${escapeHtml(l.display)}</span>`
     ).join('');
+
     const excerptHtml = issue.excerpt
       ? `<div class="gs-card-excerpt">${escapeHtml(issue.excerpt)}${issue.excerpt.length >= 150 ? '…' : ''}</div>`
       : '';
+
+    const browserFixHtml = issue.browserFixable ? `
+      <div class="gs-browser-fix">
+        <span class="gs-browser-fix-badge">🌐 Fix right in your browser</span>
+        <p class="gs-browser-fix-desc">No terminal needed. Open the file on GitHub, click the pencil ✏ icon, make your edit, then click "Propose changes" at the bottom.</p>
+      </div>` : '';
+
+    const conceptItems = (issue.concepts || []).map((c) => {
+      const r = RESOURCE_MAP[c];
+      if (!r) return '';
+      return `<li class="gs-concept-item">
+        <span class="gs-concept-name">${escapeHtml(c.charAt(0).toUpperCase() + c.slice(1))}</span>
+        <span class="gs-concept-desc">${escapeHtml(r.desc)}</span>
+        <a class="gs-concept-link" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">Read (${escapeHtml(r.time)}) ↗</a>
+      </li>`;
+    }).filter(Boolean).join('');
+
+    const learnInner = browserFixHtml + (conceptItems
+      ? `<ul class="gs-concept-list">${conceptItems}</ul>`
+      : '<p class="gs-concept-fallback">Good fit for: anyone comfortable opening a text file. No prior knowledge needed.</p>');
+
     el.innerHTML = `
       <a class="gs-card-openlink" href="${escapeHtml(issue.url)}" target="_blank" rel="noopener noreferrer" aria-label="Open issue: ${escapeHtml(issue.title)}"></a>
       <div class="gs-card-repo">
@@ -1369,9 +1393,15 @@
           <li><strong>Open a PR</strong> — run <code>git push origin my-fix</code>, then on GitHub click <em>Compare &amp; pull request</em>. Done!</li>
         </ol>
       </div>
+      <button class="gs-card-learnbtn" type="button" aria-expanded="false">Before you start ▾</button>
+      <div class="gs-card-learn" hidden>${learnInner}</div>
     `;
-    const howBtn = el.querySelector('.gs-card-howbtn');
-    const howDiv = el.querySelector('.gs-card-how');
+
+    const howBtn   = el.querySelector('.gs-card-howbtn');
+    const howDiv   = el.querySelector('.gs-card-how');
+    const learnBtn = el.querySelector('.gs-card-learnbtn');
+    const learnDiv = el.querySelector('.gs-card-learn');
+
     howBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1381,6 +1411,18 @@
       howBtn.textContent = open ? 'Show me how →' : 'Hide steps ↑';
       requestAnimationFrame(() => applyGSLayout());
     });
+
+    learnBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = learnBtn.getAttribute('aria-expanded') === 'true';
+      learnBtn.setAttribute('aria-expanded', String(!open));
+      learnDiv.hidden = open;
+      learnBtn.textContent = open ? 'Before you start ▾' : 'Before you start ▴';
+      if (!open) (issue.concepts || []).forEach(logConceptView);
+      requestAnimationFrame(() => applyGSLayout());
+    });
+
     return el;
   }
 
