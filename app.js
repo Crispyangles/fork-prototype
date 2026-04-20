@@ -375,10 +375,12 @@
   async function runLoop() {
     if (running) return;
     if (mode === 'real') return;
+    if (mode === 'getting-started') return;
     running = true;
     while (running) {
       const phase = PHASES[currentPhaseIndex];
       if (mode === 'real') { running = false; break; }
+      if (mode === 'getting-started') { running = false; break; }
       try {
         await Promise.resolve(phase.enter());
       } catch (err) {
@@ -1167,6 +1169,10 @@
     const parts = item.html_url.split('/');
     const owner = parts[3] || '';
     const name  = parts[4] || '';
+    const labelNames = (item.labels || []).map((l) => l.name.toLowerCase());
+
+    if (labelNames.some((l) => /advanced|breaking.change|major.release/i.test(l))) return null;
+
     const excerpt = (item.body || '').trim()
       .replace(/```[\s\S]*?```/g, '')
       .replace(/`[^`]+`/g, '')
@@ -1177,19 +1183,33 @@
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 150);
+
+    const isEasiest = labelNames.some((l) => /doc|typo|spell|translat|wording|content|readme/i.test(l))
+      || excerpt.length < 80;
+    const difficulty = isEasiest ? 'easy' : 'medium';
+
+    const LABEL_MAP = {
+      'documentation': 'Fix docs', 'docs': 'Fix docs', 'typo': 'Fix a typo',
+      'bug': 'Fix a bug', 'enhancement': 'Add a feature', 'help wanted': 'Help wanted',
+      'ui': 'UI fix', 'design': 'Design', 'test': 'Add tests', 'testing': 'Add tests',
+    };
     const labels = (item.labels || [])
-      .map((l) => l.name)
-      .filter((n) => !/good.first.issue/i.test(n))
-      .slice(0, 3);
-    return { owner, name, title: item.title, excerpt, labels, url: safeUrl(item.html_url) };
+      .filter((l) => !/good.first.issue/i.test(l.name))
+      .slice(0, 3)
+      .map((l) => ({ display: LABEL_MAP[l.name.toLowerCase()] || l.name, real: l.name }));
+
+    return { owner, name, title: item.title, excerpt, labels, difficulty, url: safeUrl(item.html_url) };
   }
 
   // ----- Create a single issue card element ----------------------------
   function createGSCard(issue) {
     const el = document.createElement('div');
     el.className = 'gs-card';
+    const diffBadge = issue.difficulty === 'easy'
+      ? '<span class="gs-diff gs-diff-easy" title="Easiest — docs, typos, or small text fixes">🟢 Easiest</span>'
+      : '<span class="gs-diff gs-diff-medium" title="Needs a bit of code reading">🟡 A bit more</span>';
     const labelsHtml = issue.labels.map((l) =>
-      `<span class="gs-label">${escapeHtml(l)}</span>`
+      `<span class="gs-label" title="${escapeHtml(l.real)}">${escapeHtml(l.display)}</span>`
     ).join('');
     const excerptHtml = issue.excerpt
       ? `<div class="gs-card-excerpt">${escapeHtml(issue.excerpt)}${issue.excerpt.length >= 150 ? '…' : ''}</div>`
@@ -1202,10 +1222,34 @@
         <span class="gs-card-name">${escapeHtml(issue.name)}</span>
       </div>
       <div class="gs-card-title">${escapeHtml(issue.title)}</div>
+      ${diffBadge}
       ${excerptHtml}
       ${labelsHtml ? `<div class="gs-card-labels">${labelsHtml}</div>` : ''}
-      <div class="gs-card-action">Open on GitHub ↗</div>
+      <div class="gs-card-footer">
+        <button class="gs-card-howbtn" type="button" aria-expanded="false">Show me how →</button>
+        <div class="gs-card-action">Open on GitHub ↗</div>
+      </div>
+      <div class="gs-card-how" hidden>
+        <ol class="gs-how-steps">
+          <li><strong>Fork</strong> — go to the repo on GitHub and click <strong>Fork</strong> (top-right). This copies the project to your account.</li>
+          <li><strong>Clone</strong> — click the green Code button on your fork, copy the URL, then run: <code>git clone &lt;url&gt;</code></li>
+          <li><strong>Branch</strong> — run <code>git checkout -b my-fix</code> to create a safe workspace.</li>
+          <li><strong>Fix it</strong> — open the file, make your change, then: <code>git add . &amp;&amp; git commit -m "fix: what you changed"</code></li>
+          <li><strong>Open a PR</strong> — run <code>git push origin my-fix</code>, then on GitHub click <em>Compare &amp; pull request</em>. Done!</li>
+        </ol>
+      </div>
     `;
+    const howBtn = el.querySelector('.gs-card-howbtn');
+    const howDiv = el.querySelector('.gs-card-how');
+    howBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = howBtn.getAttribute('aria-expanded') === 'true';
+      howBtn.setAttribute('aria-expanded', String(!open));
+      howDiv.hidden = open;
+      howBtn.textContent = open ? 'Show me how →' : 'Hide steps ↑';
+      requestAnimationFrame(() => applyGSLayout());
+    });
     return el;
   }
 
@@ -1236,13 +1280,59 @@
   }
 
   // ----- Fetch + render issues for a given language filter -------------
-  let gsCurrentLang = 'any';
+  let gsCurrentLang = 'docs';
+  let gsAllIssues = [];
   let gsInflight = false;
+
+  const GS_INITIAL_CAP = 8;
+
+  const GS_FALLBACK_REPOS = [
+    { owner: 'firstcontributions', name: 'first-contributions', desc: 'Step-by-step guide for your very first contribution', url: 'https://github.com/firstcontributions/first-contributions' },
+    { owner: 'MunGell', name: 'awesome-for-beginners', desc: 'A curated list of beginner-friendly projects across all languages', url: 'https://github.com/MunGell/awesome-for-beginners' },
+    { owner: 'ripienaar', name: 'free-for-dev', desc: 'List of free tools for developers — docs contributions welcome', url: 'https://github.com/ripienaar/free-for-dev' },
+  ];
+
+  function showGSBanner() {
+    if (localStorage.getItem('gs:banner:dismissed')) return;
+    if (document.getElementById('gsBanner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'gsBanner';
+    banner.className = 'gs-banner';
+    banner.innerHTML = `
+      <p class="gs-banner-msg">✦ You don't need to know how to code yet. Many of these are typos and small wording fixes — fixing one counts as a real contribution and looks great on a GitHub profile.</p>
+      <button class="gs-banner-dismiss" type="button" aria-label="Dismiss">Got it ✕</button>
+    `;
+    banner.querySelector('.gs-banner-dismiss').addEventListener('click', () => {
+      localStorage.setItem('gs:banner:dismissed', '1');
+      banner.remove();
+      requestAnimationFrame(() => applyGSLayout());
+    });
+    if (gsCardsEl) gsCardsEl.before(banner);
+  }
+
+  function showGSFallback() {
+    if (document.getElementById('gsFallback')) return;
+    if (!gsErrorEl) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'gsFallback';
+    wrap.className = 'gs-fallback';
+    wrap.innerHTML = GS_FALLBACK_REPOS.map((r) =>
+      `<a class="gs-fallback-item" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">
+        <span class="gs-fallback-name">${escapeHtml(r.owner)}/${escapeHtml(r.name)}</span>
+        <span class="gs-fallback-desc">${escapeHtml(r.desc)}</span>
+      </a>`
+    ).join('');
+    gsErrorEl.appendChild(wrap);
+  }
 
   async function loadGSIssues(lang) {
     if (gsInflight) return;
     gsInflight = true;
     gsCurrentLang = lang;
+    gsAllIssues = [];
+
+    const existingMore = document.getElementById('gsShowMore');
+    if (existingMore) existingMore.remove();
 
     document.querySelectorAll('.gs-chip').forEach((chip) => {
       chip.classList.toggle('is-active', chip.dataset.gslang === lang);
@@ -1250,20 +1340,27 @@
 
     if (gsCardsEl)  { gsCardsEl.innerHTML = ''; gsCardsEl.style.height = ''; }
     if (gsErrorEl)  gsErrorEl.hidden = true;
-    if (gsStatusEl) gsStatusEl.textContent = 'Fetching open issues from GitHub…';
+    if (gsStatusEl) gsStatusEl.textContent = 'Finding beginner-friendly issues…';
 
     try {
       const items = await fetchGSIssues(lang);
-      if (body.dataset.phase !== 'getting-started') return; // navigated away
+      if (body.dataset.phase !== 'getting-started') return;
 
-      if (!items.length) {
+      const mapped = items.map(mapGSIssue).filter(Boolean);
+      mapped.sort((a, b) => (a.difficulty === 'easy' ? 0 : 1) - (b.difficulty === 'easy' ? 0 : 1));
+      gsAllIssues = mapped;
+
+      if (!mapped.length) {
         if (gsStatusEl) gsStatusEl.textContent = 'No open issues found for this filter right now — try a different language or check back later.';
         return;
       }
 
-      if (gsStatusEl) gsStatusEl.textContent = `${items.length} open issue${items.length !== 1 ? 's' : ''} · updated within 90 days`;
+      if (gsStatusEl) gsStatusEl.textContent = `${mapped.length} beginner-friendly issue${mapped.length !== 1 ? 's' : ''}`;
 
-      items.map(mapGSIssue).forEach((issue) => {
+      showGSBanner();
+
+      const toRender = mapped.slice(0, GS_INITIAL_CAP);
+      toRender.forEach((issue) => {
         if (gsCardsEl) gsCardsEl.appendChild(createGSCard(issue));
       });
 
@@ -1275,13 +1372,37 @@
           });
         }
       });
+
+      if (mapped.length > GS_INITIAL_CAP) {
+        const remaining = mapped.length - GS_INITIAL_CAP;
+        const moreBtn = document.createElement('button');
+        moreBtn.id = 'gsShowMore';
+        moreBtn.className = 'gs-show-more btn btn-ghost';
+        moreBtn.type = 'button';
+        moreBtn.textContent = `Show ${remaining} more issue${remaining !== 1 ? 's' : ''}`;
+        moreBtn.addEventListener('click', () => {
+          moreBtn.remove();
+          gsAllIssues.slice(GS_INITIAL_CAP).forEach((issue) => {
+            if (gsCardsEl) gsCardsEl.appendChild(createGSCard(issue));
+          });
+          requestAnimationFrame(() => {
+            applyGSLayout();
+            const allCards = Array.from(gsCardsEl.children);
+            allCards.slice(-remaining).forEach((card, i) => {
+              setTimeout(() => card.classList.add('in'), 60 + i * 40);
+            });
+          });
+        });
+        if (gsCardsEl) gsCardsEl.after(moreBtn);
+      }
     } catch (err) {
       if (gsStatusEl) gsStatusEl.textContent = '';
       if (gsErrorEl && gsErrorMsgEl) {
         gsErrorMsgEl.textContent = err.message === 'rate-limit'
-          ? 'GitHub API rate limit hit — try again in a few minutes.'
-          : `Couldn't load issues: ${err.message}`;
+          ? 'GitHub asked us to slow down. Try again in a few minutes — or click the link below to browse directly.'
+          : "Couldn't load issues right now. Here are some great repos to start with:";
         gsErrorEl.hidden = false;
+        showGSFallback();
       }
     } finally {
       gsInflight = false;
@@ -1296,11 +1417,11 @@
     body.dataset.mode = 'getting-started';
     if (gsView) { gsView.hidden = false; gsView.setAttribute('aria-hidden', 'false'); }
     if (navGSBtn) navGSBtn.setAttribute('aria-pressed', 'true');
-    gsCurrentLang = 'any';
+    gsCurrentLang = 'docs';
     document.querySelectorAll('.gs-chip').forEach((chip) => {
-      chip.classList.toggle('is-active', chip.dataset.gslang === 'any');
+      chip.classList.toggle('is-active', chip.dataset.gslang === 'docs');
     });
-    loadGSIssues('any');
+    loadGSIssues('docs');
   }
 
   function exitGettingStarted() {
@@ -1313,6 +1434,11 @@
     if (gsView)     { gsView.hidden = true; gsView.setAttribute('aria-hidden', 'true'); }
     if (navGSBtn)   navGSBtn.setAttribute('aria-pressed', 'false');
     gsInflight = false;
+    gsAllIssues = [];
+    ['gsBanner', 'gsFallback', 'gsShowMore'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
     runLoop();
   }
 
@@ -1334,6 +1460,31 @@
   }
 
   if (gsBackBtn) gsBackBtn.addEventListener('click', exitGettingStarted);
+
+  // ----- Glossary overlay ------------------------------------------------
+  const GS_GLOSSARY = [
+    { term: 'Repository (repo)', def: 'A folder on GitHub that holds all the code, history, and files for one project.' },
+    { term: 'Fork', def: "Your own copy of someone else's repo. Forking lets you experiment without affecting the original." },
+    { term: 'Clone', def: 'Downloading a repo to your computer so you can edit files locally.' },
+    { term: 'Branch', def: "A parallel version of the code. Work on a branch so your changes don't affect the main code until you're ready." },
+    { term: 'Commit', def: "A saved snapshot of your changes — like a save-point with a message describing what you changed." },
+    { term: 'Push', def: 'Uploading your local commits to GitHub so others can see them.' },
+    { term: 'Pull Request (PR)', def: 'A proposal to merge your changes into the original repo. The maintainer reviews it, then accepts or suggests edits.' },
+    { term: 'Merge', def: 'Accepting a pull request and adding those changes to the main codebase.' },
+    { term: 'Issue', def: 'A GitHub ticket for tracking bugs, requests, or questions. "Good first issues" are tagged as beginner-friendly.' },
+    { term: 'Label', def: 'A tag on an issue or PR to categorize it. Labels like "documentation" or "typo" are great starting points.' },
+  ];
+
+  const gsGlossaryBtn = document.getElementById('gsGlossaryBtn');
+  if (gsGlossaryBtn) {
+    gsGlossaryBtn.addEventListener('click', () => {
+      openOverlay('Open source glossary', `<dl class="gs-glossary">${
+        GS_GLOSSARY.map((g) =>
+          `<div class="gs-glossary-item"><dt class="gs-glossary-term">${escapeHtml(g.term)}</dt><dd class="gs-glossary-def">${escapeHtml(g.def)}</dd></div>`
+        ).join('')
+      }</dl>`);
+    });
+  }
 
   document.querySelectorAll('.gs-chip').forEach((chip) => {
     chip.addEventListener('click', () => {

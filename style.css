@@ -1776,6 +1776,216 @@ body[data-phase="getting-started"] #discover { display: none !important; }
   margin: 40px auto 20px;
 }
 
+/* Header actions row (glossary button) */
+.gs-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 14px;
+}
+
+.gs-glossary-btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--amber);
+  background: rgba(245,169,58,0.07);
+  border: 0.5px solid rgba(245,169,58,0.25);
+  border-radius: 999px;
+  padding: 5px 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  letter-spacing: -0.005em;
+}
+.gs-glossary-btn:hover {
+  background: rgba(245,169,58,0.14);
+  border-color: rgba(245,169,58,0.45);
+}
+
+/* Difficulty badge */
+.gs-diff {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+  cursor: default;
+}
+.gs-diff-easy {
+  color: #4ade80;
+  background: rgba(74,222,128,0.1);
+  border: 0.5px solid rgba(74,222,128,0.3);
+}
+.gs-diff-medium {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.1);
+  border: 0.5px solid rgba(251,191,36,0.3);
+}
+
+/* Card footer: how-to button + open link side by side */
+.gs-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.gs-card-howbtn {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--teal);
+  background: rgba(62,197,197,0.07);
+  border: 0.5px solid rgba(62,197,197,0.25);
+  border-radius: 999px;
+  padding: 4px 11px;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.gs-card-howbtn:hover {
+  background: rgba(62,197,197,0.14);
+  border-color: rgba(62,197,197,0.45);
+}
+
+/* Expanded how-to steps */
+.gs-card-how {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.035);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+}
+.gs-card-how[hidden] { display: none; }
+
+.gs-how-steps {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: decimal;
+  margin: 0;
+}
+.gs-how-steps li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.gs-how-steps strong { color: var(--text-primary); }
+.gs-how-steps code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  background: rgba(255,255,255,0.07);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+.gs-how-steps em { color: var(--text-secondary); font-style: italic; }
+
+/* "You don't need to code yet" encouragement banner */
+.gs-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  background: rgba(62,197,197,0.06);
+  border: 0.5px solid rgba(62,197,197,0.2);
+  border-radius: 12px;
+}
+.gs-banner-msg {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.gs-banner-dismiss {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  white-space: nowrap;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.gs-banner-dismiss:hover { color: var(--text-primary); }
+
+/* Fallback repos list (inside error panel on fetch failure) */
+.gs-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  text-align: left;
+}
+.gs-fallback-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--glass-border);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.gs-fallback-item:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--glass-border-strong);
+}
+.gs-fallback-name {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.gs-fallback-desc {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+/* Show more button */
+.gs-show-more {
+  display: block;
+  margin: 20px auto 0;
+}
+
+/* Glossary overlay content */
+.gs-glossary {
+  display: flex;
+  flex-direction: column;
+}
+.gs-glossary-item {
+  padding: 12px 0;
+  border-bottom: 0.5px solid rgba(255,255,255,0.07);
+}
+.gs-glossary-item:last-child { border-bottom: none; }
+.gs-glossary-term {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  letter-spacing: -0.01em;
+}
+.gs-glossary-def {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .gs-lang-chips { gap: 6px; }
   .gs-chip { font-size: 12px; padding: 5px 10px; }
