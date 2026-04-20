@@ -1164,6 +1164,133 @@
     return items;
   }
 
+  // ----- Concept → resource mapping (extend this const to add more topics) ---
+  const RESOURCE_MAP = {
+    'editing on github.com': {
+      desc: 'Make changes right in your browser — no terminal needed',
+      url: 'https://docs.github.com/en/repositories/working-with-files/managing-files/editing-files',
+      time: '3 min',
+    },
+    'markdown basics': {
+      desc: 'Format text, add links, and write lists in .md files',
+      url: 'https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax',
+      time: '5 min',
+    },
+    'how pull requests work': {
+      desc: 'What a PR is and how maintainers review your change',
+      url: 'https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests',
+      time: '4 min',
+    },
+    'git basics': {
+      desc: 'What Git is and why every contributor uses it',
+      url: 'https://docs.github.com/en/get-started/using-git/about-git',
+      time: '5 min',
+    },
+    'CSS selectors': {
+      desc: 'How CSS targets HTML elements to apply styles',
+      url: 'https://developer.mozilla.org/en-US/docs/Learn/CSS/Building_blocks/Selectors',
+      time: '6 min',
+    },
+    'flexbox': {
+      desc: 'CSS layout technique for aligning items in rows or columns',
+      url: 'https://developer.mozilla.org/en-US/docs/Learn/CSS/CSS_layout/Flexbox',
+      time: '8 min',
+    },
+    'HTML basics': {
+      desc: 'The building blocks of every web page',
+      url: 'https://developer.mozilla.org/en-US/docs/Learn/HTML/Introduction_to_HTML/Getting_started',
+      time: '10 min',
+    },
+    'JavaScript basics': {
+      desc: 'Variables, functions, and the DOM — core JS concepts',
+      url: 'https://developer.mozilla.org/en-US/docs/Learn/JavaScript/First_steps/What_is_JavaScript',
+      time: '8 min',
+    },
+    'Python syntax': {
+      desc: 'Python variables, indentation, and how to read Python code',
+      url: 'https://docs.python.org/3/tutorial/introduction.html',
+      time: '10 min',
+    },
+    'TypeScript basics': {
+      desc: 'How TypeScript adds types to JavaScript — 5-minute intro',
+      url: 'https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html',
+      time: '5 min',
+    },
+    'Go basics': {
+      desc: 'Interactive intro to Go syntax and patterns',
+      url: 'https://go.dev/tour/welcome/1',
+      time: '10 min',
+    },
+    'Rust basics': {
+      desc: 'Getting started with Rust — first program and core concepts',
+      url: 'https://doc.rust-lang.org/book/ch01-00-getting-started.html',
+      time: '10 min',
+    },
+  };
+
+  // Extract up to 3 concepts from labels + title + body keywords
+  function extractConcepts(labelNames, titleLower, bodyLower) {
+    const all = `${titleLower} ${bodyLower}`;
+    const concepts = [];
+
+    const isDocsy = labelNames.some((l) => /doc|typo|spell|translat|wording|content|readme/i.test(l))
+      || /\.md\b|readme|typo|typos|spelling|documentation|changelog|translat/i.test(all);
+    const hasCodeSignal = /compile|build|test|\brun\b|\bexecute\b|\.py\b|\.js\b|\.ts\b|\.go\b|\.rs\b|\.java\b|\.cpp\b|\.rb\b/i.test(all);
+
+    if (isDocsy && !hasCodeSignal) {
+      concepts.push('editing on github.com', 'markdown basics');
+    } else if (isDocsy) {
+      concepts.push('markdown basics');
+    }
+
+    if (/flex\b|flexbox/i.test(all)) {
+      concepts.push('flexbox');
+    } else if (/\.css\b|\bcss\b|style|styling|\bgrid\b|layout|color|colour|font|spacing/i.test(all)) {
+      concepts.push('CSS selectors');
+    }
+
+    if (/\.html?\b|\bhtml\b|template|markup/i.test(all)
+        && !concepts.includes('CSS selectors') && !concepts.includes('flexbox')) {
+      concepts.push('HTML basics');
+    }
+
+    if (/\.ts\b|\btypescript\b/i.test(all)) {
+      concepts.push('TypeScript basics');
+    } else if (/\.js\b|\bjavascript\b|\bnode\b|\bnpm\b/i.test(all)) {
+      concepts.push('JavaScript basics');
+    }
+
+    if (/\.py\b|\bpython\b|\bpip\b|django|flask|fastapi|pytest/i.test(all)) {
+      concepts.push('Python syntax');
+    }
+
+    if (/\.go\b|\bgolang\b|go\.mod/i.test(all)) {
+      concepts.push('Go basics');
+    }
+
+    if (/\.rs\b|\brust\b|\bcargo\b|\bcrate\b/i.test(all)) {
+      concepts.push('Rust basics');
+    }
+
+    if (!concepts.length) {
+      concepts.push('git basics', 'how pull requests work');
+    } else if (concepts.length < 3 && !concepts.includes('how pull requests work')) {
+      concepts.push('how pull requests work');
+    }
+
+    return { concepts: concepts.slice(0, 3), browserFixable: isDocsy && !hasCodeSignal };
+  }
+
+  // Track concepts opened — stored for a future progress view
+  function logConceptView(conceptName) {
+    try {
+      const key = 'gs:concepts:viewed';
+      const seen = JSON.parse(localStorage.getItem(key) || '{}');
+      seen[conceptName] = Date.now();
+      localStorage.setItem(key, JSON.stringify(seen));
+    } catch {}
+  }
+
   // ----- Map raw API issue to display object ---------------------------
   function mapGSIssue(item) {
     const parts = item.html_url.split('/');
@@ -1172,6 +1299,10 @@
     const labelNames = (item.labels || []).map((l) => l.name.toLowerCase());
 
     if (labelNames.some((l) => /advanced|breaking.change|major.release/i.test(l))) return null;
+
+    const titleLower = item.title.toLowerCase();
+    const bodyLower  = (item.body || '').toLowerCase();
+    const { concepts, browserFixable } = extractConcepts(labelNames, titleLower, bodyLower);
 
     const excerpt = (item.body || '').trim()
       .replace(/```[\s\S]*?```/g, '')
@@ -1198,7 +1329,7 @@
       .slice(0, 3)
       .map((l) => ({ display: LABEL_MAP[l.name.toLowerCase()] || l.name, real: l.name }));
 
-    return { owner, name, title: item.title, excerpt, labels, difficulty, url: safeUrl(item.html_url) };
+    return { owner, name, title: item.title, excerpt, labels, difficulty, concepts, browserFixable, url: safeUrl(item.html_url) };
   }
 
   // ----- Create a single issue card element ----------------------------
