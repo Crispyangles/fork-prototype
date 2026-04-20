@@ -1419,8 +1419,364 @@ body[data-mode="real"] .mode-badge { display: inline-flex; }
 
 @media (max-width: 760px) {
   .brand-tag, .ghostnav-item { display: none; }
+  .ghostnav-gs { display: inline-flex !important; }
   .search-input { width: 92vw; }
   .search-prompt { font-size: 28px; }
   .pain-panel { width: 94vw; }
   .cluster-headers { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* =======================================================================
+   Getting Started — beginner-friendly GitHub issues view
+   Activated by body[data-phase="getting-started"]
+   ======================================================================= */
+
+/* "Get started" button in the ghostnav */
+.ghostnav-gs {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+  background: rgba(62, 197, 197, 0.08);
+  border: 0.5px solid rgba(62, 197, 197, 0.28);
+  border-radius: 999px;
+  padding: 5px 13px;
+  cursor: pointer;
+  transition: color 0.18s, background 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+.ghostnav-gs:hover {
+  background: rgba(62, 197, 197, 0.14);
+  border-color: rgba(62, 197, 197, 0.5);
+  box-shadow: 0 0 12px rgba(62, 197, 197, 0.18);
+}
+.ghostnav-gs[aria-pressed="true"] {
+  color: #0c1a1a;
+  background: var(--teal);
+  border-color: var(--teal);
+  box-shadow: 0 0 16px rgba(62, 197, 197, 0.4);
+}
+
+/* "New to open source? Start here →" link below search bar */
+.gs-start-link {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--teal);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 0;
+  letter-spacing: -0.005em;
+  opacity: 0.85;
+  transition: opacity 0.2s, color 0.2s;
+}
+.gs-start-link:hover { opacity: 1; }
+
+/* Hide start link once we've left empty/typing phase */
+body:not([data-phase="empty"]):not([data-phase="typing"]) .gs-start-link {
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Hide regular stage content while in getting-started mode */
+body[data-phase="getting-started"] .filters,
+body[data-phase="getting-started"] .cluster-headers,
+body[data-phase="getting-started"] #cards,
+body[data-phase="getting-started"] #loadMore,
+body[data-phase="getting-started"] .filter-empty,
+body[data-phase="getting-started"] #painPanel,
+body[data-phase="getting-started"] #climax,
+body[data-phase="getting-started"] #discover { display: none !important; }
+
+/* GS view container */
+.gs-view[hidden] { display: none; }
+.gs-view {
+  display: block;
+  padding: 8px 4px 60px;
+  animation: gs-fade-in 0.4s var(--ease-out-soft) both;
+}
+
+@keyframes gs-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Intro + collapsible steps */
+.gs-header {
+  max-width: 720px;
+  margin: 0 auto 24px;
+}
+
+.gs-intro {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+}
+.gs-intro strong { color: var(--text-primary); font-weight: 600; }
+
+.gs-steps {
+  margin-top: 14px;
+  border-radius: 10px;
+  border: 0.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.025);
+  overflow: hidden;
+}
+
+.gs-steps-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  transition: color 0.15s, background 0.15s;
+}
+.gs-steps-toggle::-webkit-details-marker { display: none; }
+.gs-steps-toggle:hover { color: var(--text-primary); background: rgba(255,255,255,0.03); }
+
+.gs-steps[open] .gs-steps-toggle { border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+
+.gs-steps-list {
+  padding: 14px 18px 14px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: decimal;
+}
+.gs-steps-list li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.gs-steps-list strong { color: var(--text-primary); }
+.gs-steps-list code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  background: rgba(255,255,255,0.07);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+/* Language filter chips */
+.gs-lang-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.gs-chip {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  user-select: none;
+  letter-spacing: -0.005em;
+}
+.gs-chip:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.08);
+  border-color: var(--glass-border-strong);
+}
+.gs-chip:active { transform: scale(0.96); }
+.gs-chip.is-active {
+  color: #0c1322;
+  background: linear-gradient(180deg, #7aa6ff 0%, #5b8df0 100%);
+  border-color: rgba(91, 141, 240, 0.5);
+  box-shadow: 0 4px 12px -3px rgba(91, 141, 240, 0.55), 0 0 0 0.5px rgba(255,255,255,0.18) inset;
+}
+.gs-chip-docs { color: var(--text-tertiary); }
+.gs-chip-docs:hover { color: var(--amber); border-color: rgba(245,169,58,0.3); }
+.gs-chip-docs.is-active {
+  color: #201400;
+  background: linear-gradient(180deg, #f5c56a 0%, var(--amber) 100%);
+  border-color: rgba(245,169,58,0.55);
+  box-shadow: 0 4px 12px -3px rgba(245,169,58,0.5), 0 0 0 0.5px rgba(255,255,255,0.18) inset;
+}
+
+/* GS status line */
+.gs-status {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  min-height: 18px;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+
+/* Rate-limit / error panel */
+.gs-error {
+  margin: 24px auto;
+  max-width: 460px;
+  padding: 20px 24px;
+  text-align: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,100,100,0.2);
+  border-radius: 12px;
+}
+.gs-error[hidden] { display: none; }
+.gs-error-msg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.gs-error-link {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* GS cards container — same pattern as .cards (position:relative, JS sets height) */
+.gs-cards {
+  position: relative;
+  width: 100%;
+  min-height: 60px;
+  margin-top: 10px;
+}
+
+/* Individual issue card */
+.gs-card {
+  position: absolute;
+  width: var(--gs-card-w, 380px);
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 100%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,0.04) inset,
+    0 10px 24px -10px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translate(var(--tx, 0), calc(var(--ty, 0) + 16px)) scale(0.95);
+  transition:
+    opacity 0.5s var(--ease-out-soft),
+    transform 0.65s var(--ease-out-soft),
+    border-color 0.3s,
+    box-shadow 0.3s;
+  cursor: default;
+}
+
+.gs-card.in {
+  opacity: 1;
+  transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
+}
+
+.gs-card:hover {
+  border-color: rgba(62, 197, 197, 0.3);
+  box-shadow:
+    0 0 0 0.5px rgba(62, 197, 197, 0.12) inset,
+    0 16px 32px -10px rgba(0,0,0,0.65),
+    0 0 20px rgba(62, 197, 197, 0.08);
+}
+
+/* Full-card invisible link overlay (same trick as .card-link) */
+.gs-card-openlink {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  z-index: 1;
+}
+
+.gs-card-repo {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  margin-bottom: 8px;
+}
+.gs-card-owner {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: -0.01em;
+}
+.gs-card-slash { font-size: 11px; color: var(--text-tertiary); }
+.gs-card-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gs-card-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.gs-card-excerpt {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.gs-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.gs-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--teal);
+  background: rgba(62, 197, 197, 0.09);
+  border: 0.5px solid rgba(62, 197, 197, 0.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.gs-card-action {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.005em;
+  margin-top: 2px;
+  transition: color 0.15s;
+}
+.gs-card:hover .gs-card-action { color: #8fb6ff; }
+
+/* Back button */
+.gs-back {
+  display: block;
+  margin: 40px auto 20px;
+}
+
+@media (max-width: 760px) {
+  .gs-lang-chips { gap: 6px; }
+  .gs-chip { font-size: 12px; padding: 5px 10px; }
 }

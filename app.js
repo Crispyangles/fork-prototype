@@ -618,6 +618,19 @@
 
   function switchToRealMode() {
     if (mode === 'real') return;
+    // Clean up GS state if entering from getting-started mode
+    if (mode === 'getting-started') {
+      const gsCardsEl  = document.getElementById('gsCards');
+      const gsStatusEl = document.getElementById('gsStatus');
+      const gsErrorEl  = document.getElementById('gsError');
+      const gsViewEl   = document.getElementById('gsView');
+      const navGSEl    = document.getElementById('navGetStarted');
+      if (gsCardsEl)  { gsCardsEl.innerHTML = ''; gsCardsEl.style.height = ''; }
+      if (gsStatusEl) gsStatusEl.textContent = '';
+      if (gsErrorEl)  gsErrorEl.hidden = true;
+      if (gsViewEl)   { gsViewEl.hidden = true; gsViewEl.setAttribute('aria-hidden', 'true'); }
+      if (navGSEl)    navGSEl.setAttribute('aria-pressed', 'false');
+    }
     mode = 'real';
     body.dataset.mode = 'real';
     running = false; // stop demo loop
@@ -843,7 +856,8 @@
   window.addEventListener('resize', () => {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      applyLayout(body.dataset.phase);
+      if (mode === 'getting-started') applyGSLayout();
+      else applyLayout(body.dataset.phase);
     }, 100);
   });
 
@@ -891,6 +905,9 @@
       if (overlay && !overlay.hidden) {
         e.preventDefault();
         closeOverlay();
+      } else if (mode === 'getting-started') {
+        e.preventDefault();
+        exitGettingStarted();
       } else if (mode === 'real' && body.dataset.phase !== 'empty') {
         e.preventDefault();
         searchInput.value = '';
@@ -1084,6 +1101,245 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
     });
   }
+
+  // =====================================================================
+  // Getting Started — beginner-friendly GitHub issues
+  // =====================================================================
+
+  const gsView        = document.getElementById('gsView');
+  const gsCardsEl     = document.getElementById('gsCards');
+  const gsStatusEl    = document.getElementById('gsStatus');
+  const gsErrorEl     = document.getElementById('gsError');
+  const gsErrorMsgEl  = document.getElementById('gsErrorMsg');
+  const gsBackBtn     = document.getElementById('gsBack');
+  const gsStartLinkEl = document.getElementById('gsStartLink');
+  const navGSBtn      = document.getElementById('navGetStarted');
+
+  // ----- sessionStorage cache (10 min TTL per language) ---------------
+  const GS_CACHE_TTL = 10 * 60 * 1000;
+
+  function gsGetCache(lang) {
+    try {
+      const raw = sessionStorage.getItem(`gs:${lang}`);
+      if (!raw) return null;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > GS_CACHE_TTL) { sessionStorage.removeItem(`gs:${lang}`); return null; }
+      return data;
+    } catch { return null; }
+  }
+
+  function gsSetCache(lang, data) {
+    try { sessionStorage.setItem(`gs:${lang}`, JSON.stringify({ data, ts: Date.now() })); } catch {}
+  }
+
+  // ----- GitHub issues API fetch ---------------------------------------
+  function buildGSQuery(lang) {
+    const base = 'label:"good first issue" is:open is:issue no:assignee stars:>50 comments:<3';
+    if (lang === 'any')  return base;
+    if (lang === 'docs') return 'label:"good first issue" label:documentation is:open is:issue no:assignee stars:>50';
+    return `${base} language:${lang}`;
+  }
+
+  const GS_MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+  async function fetchGSIssues(lang) {
+    const cached = gsGetCache(lang);
+    if (cached) return cached;
+    const q = buildGSQuery(lang);
+    const url = `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&sort=updated&order=desc&per_page=40`;
+    const resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    if (!resp.ok) {
+      if (resp.status === 403) throw new Error('rate-limit');
+      throw new Error(`GitHub API error (${resp.status})`);
+    }
+    const json = await resp.json();
+    const items = (json.items || []).filter((item) => {
+      if (Date.now() - new Date(item.created_at).getTime() > GS_MAX_AGE) return false;
+      if (!item.body || item.body.trim().length < 50) return false;
+      return true;
+    });
+    gsSetCache(lang, items);
+    return items;
+  }
+
+  // ----- Map raw API issue to display object ---------------------------
+  function mapGSIssue(item) {
+    const parts = item.html_url.split('/');
+    const owner = parts[3] || '';
+    const name  = parts[4] || '';
+    const excerpt = (item.body || '').trim()
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`]+`/g, '')
+      .replace(/!\[.*?\]\(.*?\)/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/#+\s*/g, '')
+      .replace(/\r?\n+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 150);
+    const labels = (item.labels || [])
+      .map((l) => l.name)
+      .filter((n) => !/good.first.issue/i.test(n))
+      .slice(0, 3);
+    return { owner, name, title: item.title, excerpt, labels, url: safeUrl(item.html_url) };
+  }
+
+  // ----- Create a single issue card element ----------------------------
+  function createGSCard(issue) {
+    const el = document.createElement('div');
+    el.className = 'gs-card';
+    const labelsHtml = issue.labels.map((l) =>
+      `<span class="gs-label">${escapeHtml(l)}</span>`
+    ).join('');
+    const excerptHtml = issue.excerpt
+      ? `<div class="gs-card-excerpt">${escapeHtml(issue.excerpt)}${issue.excerpt.length >= 150 ? '…' : ''}</div>`
+      : '';
+    el.innerHTML = `
+      <a class="gs-card-openlink" href="${escapeHtml(issue.url)}" target="_blank" rel="noopener noreferrer" aria-label="Open issue: ${escapeHtml(issue.title)}"></a>
+      <div class="gs-card-repo">
+        <span class="gs-card-owner">${escapeHtml(issue.owner)}</span>
+        <span class="gs-card-slash">/</span>
+        <span class="gs-card-name">${escapeHtml(issue.name)}</span>
+      </div>
+      <div class="gs-card-title">${escapeHtml(issue.title)}</div>
+      ${excerptHtml}
+      ${labelsHtml ? `<div class="gs-card-labels">${labelsHtml}</div>` : ''}
+      <div class="gs-card-action">Open on GitHub ↗</div>
+    `;
+    return el;
+  }
+
+  // ----- Masonry layout for GS cards (mirrors applyLayout) -------------
+  function applyGSLayout() {
+    if (!gsCardsEl) return;
+    const allCards = Array.from(gsCardsEl.children);
+    if (!allCards.length) { gsCardsEl.style.height = ''; return; }
+    const usableW = stage.clientWidth;
+    const maxCols = Math.max(1, Math.min(3, Math.floor(usableW / 380)));
+    const hGap = 20;
+    const vGap = 18;
+    const cardW = Math.min(460, (usableW - hGap * (maxCols - 1)) / maxCols);
+    const totalW = maxCols * cardW + (maxCols - 1) * hGap;
+    const startX = (usableW - totalW) / 2;
+    allCards.forEach((c) => c.style.setProperty('--gs-card-w', `${cardW}px`));
+    void gsCardsEl.offsetHeight; // force layout so card heights are accurate
+    const colYs = new Array(maxCols).fill(0);
+    allCards.forEach((card) => {
+      let col = 0;
+      for (let c = 1; c < maxCols; c++) if (colYs[c] < colYs[col]) col = c;
+      const y = colYs[col];
+      card.style.setProperty('--tx', `${startX + col * (cardW + hGap)}px`);
+      card.style.setProperty('--ty', `${y}px`);
+      colYs[col] = y + card.offsetHeight + vGap;
+    });
+    gsCardsEl.style.height = `${Math.max(0, ...colYs) + 60}px`;
+  }
+
+  // ----- Fetch + render issues for a given language filter -------------
+  let gsCurrentLang = 'any';
+  let gsInflight = false;
+
+  async function loadGSIssues(lang) {
+    if (gsInflight) return;
+    gsInflight = true;
+    gsCurrentLang = lang;
+
+    document.querySelectorAll('.gs-chip').forEach((chip) => {
+      chip.classList.toggle('is-active', chip.dataset.gslang === lang);
+    });
+
+    if (gsCardsEl)  { gsCardsEl.innerHTML = ''; gsCardsEl.style.height = ''; }
+    if (gsErrorEl)  gsErrorEl.hidden = true;
+    if (gsStatusEl) gsStatusEl.textContent = 'Fetching open issues from GitHub…';
+
+    try {
+      const items = await fetchGSIssues(lang);
+      if (body.dataset.phase !== 'getting-started') return; // navigated away
+
+      if (!items.length) {
+        if (gsStatusEl) gsStatusEl.textContent = 'No open issues found for this filter right now — try a different language or check back later.';
+        return;
+      }
+
+      if (gsStatusEl) gsStatusEl.textContent = `${items.length} open issue${items.length !== 1 ? 's' : ''} · updated within 90 days`;
+
+      items.map(mapGSIssue).forEach((issue) => {
+        if (gsCardsEl) gsCardsEl.appendChild(createGSCard(issue));
+      });
+
+      requestAnimationFrame(() => {
+        applyGSLayout();
+        if (gsCardsEl) {
+          Array.from(gsCardsEl.children).forEach((card, i) => {
+            setTimeout(() => card.classList.add('in'), 60 + i * 40);
+          });
+        }
+      });
+    } catch (err) {
+      if (gsStatusEl) gsStatusEl.textContent = '';
+      if (gsErrorEl && gsErrorMsgEl) {
+        gsErrorMsgEl.textContent = err.message === 'rate-limit'
+          ? 'GitHub API rate limit hit — try again in a few minutes.'
+          : `Couldn't load issues: ${err.message}`;
+        gsErrorEl.hidden = false;
+      }
+    } finally {
+      gsInflight = false;
+    }
+  }
+
+  // ----- Enter / exit Getting Started mode ----------------------------
+  function enterGettingStarted() {
+    running = false;
+    mode = 'getting-started';
+    body.dataset.phase = 'getting-started';
+    body.dataset.mode = 'getting-started';
+    if (gsView) { gsView.hidden = false; gsView.setAttribute('aria-hidden', 'false'); }
+    if (navGSBtn) navGSBtn.setAttribute('aria-pressed', 'true');
+    gsCurrentLang = 'any';
+    document.querySelectorAll('.gs-chip').forEach((chip) => {
+      chip.classList.toggle('is-active', chip.dataset.gslang === 'any');
+    });
+    loadGSIssues('any');
+  }
+
+  function exitGettingStarted() {
+    mode = 'demo';
+    body.dataset.phase = 'empty';
+    delete body.dataset.mode;
+    if (gsCardsEl)  { gsCardsEl.innerHTML = ''; gsCardsEl.style.height = ''; }
+    if (gsStatusEl) gsStatusEl.textContent = '';
+    if (gsErrorEl)  gsErrorEl.hidden = true;
+    if (gsView)     { gsView.hidden = true; gsView.setAttribute('aria-hidden', 'true'); }
+    if (navGSBtn)   navGSBtn.setAttribute('aria-pressed', 'false');
+    gsInflight = false;
+    runLoop();
+  }
+
+  // ----- Wire entry/exit/chip event listeners -------------------------
+  if (gsStartLinkEl) {
+    gsStartLinkEl.addEventListener('click', () => {
+      if (mode === 'getting-started') exitGettingStarted(); else enterGettingStarted();
+    });
+  }
+
+  if (navGSBtn) {
+    const gsNavHandler = () => {
+      if (mode === 'getting-started') exitGettingStarted(); else enterGettingStarted();
+    };
+    navGSBtn.addEventListener('click', gsNavHandler);
+    navGSBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); gsNavHandler(); }
+    });
+  }
+
+  if (gsBackBtn) gsBackBtn.addEventListener('click', exitGettingStarted);
+
+  document.querySelectorAll('.gs-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      if (chip.dataset.gslang !== gsCurrentLang) loadGSIssues(chip.dataset.gslang);
+    });
+  });
 
   // ----- Boot -----------------------------------------------------------
   setTimeout(runLoop, 800);

@@ -43,6 +43,7 @@
     </div>
     <nav class="ghostnav">
       <span class="mode-badge" id="modeBadge">live</span>
+      <button class="ghostnav-item ghostnav-gs" id="navGetStarted" type="button" aria-pressed="false">Get started</button>
       <span class="ghostnav-item">Searches</span>
       <span class="ghostnav-item">Shed</span>
       <span class="ghostnav-item">Settings</span>
@@ -72,6 +73,7 @@
     </div>
     <ul class="search-history" id="searchHistory" role="listbox" aria-label="Recent searches" hidden></ul>
     <div class="search-status" id="searchStatus" aria-live="polite"></div>
+    <button class="gs-start-link" id="gsStartLink" type="button">✦ New to open source? Start here →</button>
   </section>
 
   <main class="stage" id="stage">
@@ -149,6 +151,41 @@
         </div>
       </div>
     </div>
+
+    <!-- Getting Started view — beginner-friendly GitHub issues -->
+    <section class="gs-view" id="gsView" hidden aria-hidden="true">
+      <div class="gs-header">
+        <p class="gs-intro">A <strong>good first issue</strong> is a task that repo maintainers have specifically flagged as beginner-friendly. A <strong>pull request</strong> is how you propose a fix — you copy the project, make your change, and send it back. Pick anything below, fork it, fix it, open a PR. You can come back here any time.</p>
+        <details class="gs-steps">
+          <summary class="gs-steps-toggle">How contributing works in 3 steps ↓</summary>
+          <ol class="gs-steps-list">
+            <li><strong>Fork + clone</strong> — click Fork on the repo page, then <code>git clone &lt;your-fork-url&gt;</code> to get it on your machine.</li>
+            <li><strong>Branch + fix</strong> — <code>git checkout -b my-fix</code>, make your edit, then <code>git commit -m "fix: ..."</code>.</li>
+            <li><strong>Open a PR</strong> — push your branch, then click "Compare &amp; pull request" on GitHub and describe your change.</li>
+          </ol>
+        </details>
+      </div>
+
+      <div class="gs-lang-chips" id="gsLangChips" role="group" aria-label="Filter by language">
+        <button class="gs-chip is-active" type="button" data-gslang="any">Any language</button>
+        <button class="gs-chip" type="button" data-gslang="javascript">JavaScript</button>
+        <button class="gs-chip" type="button" data-gslang="python">Python</button>
+        <button class="gs-chip" type="button" data-gslang="html">HTML / CSS</button>
+        <button class="gs-chip" type="button" data-gslang="go">Go</button>
+        <button class="gs-chip" type="button" data-gslang="rust">Rust</button>
+        <button class="gs-chip gs-chip-docs" type="button" data-gslang="docs">📄 Documentation</button>
+      </div>
+
+      <div class="gs-status" id="gsStatus" aria-live="polite"></div>
+      <div class="gs-error" id="gsError" hidden>
+        <p class="gs-error-msg" id="gsErrorMsg"></p>
+        <a class="btn btn-ghost gs-error-link" href="https://github.com/search?q=label%3Agood-first-issue+is%3Aopen+is%3Aissue&type=Issues" target="_blank" rel="noopener noreferrer">Browse on GitHub instead ↗</a>
+      </div>
+
+      <div class="gs-cards" id="gsCards"></div>
+
+      <button class="gs-back btn btn-ghost" type="button" id="gsBack">← Back to search</button>
+    </section>
 
     <!-- Discover overlay: shows trending opportunity cards (separate mode) -->
     <section class="discover" id="discover" aria-hidden="true">
