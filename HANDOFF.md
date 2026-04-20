@@ -1,10 +1,55 @@
 # Handoff — Fork prototype
 **Date:** 2026-04-20  
-**Status:** ✅ All bugs fixed, 10-persona test suite clean. Ready to post publicly.
+**Status:** ✅ Getting Started feature complete with beginner-friendly enhancements. Ready to post publicly.
 
 ---
 
-## What was done this session
+## What was done this session (Getting Started feature)
+
+### Getting Started — full feature
+
+Adds a beginner-first entry point accessible via the **Get started** nav button or the **"New to open source? Start here →"** link under the search bar.
+
+| Feature | Detail |
+|---------|--------|
+| Nav toggle | `#navGetStarted` button, `aria-pressed` reflects state |
+| Default filter | **Fix typos & docs** chip active on entry (easiest issues first) |
+| Difficulty badges | 🟢 Easiest (docs/typo labels or short body) · 🟡 A bit more (code) |
+| Language chips | Any · JavaScript · Python · HTML/CSS · Go · Rust · 📄 Documentation |
+| Card cap | First 8 shown; "Show N more" button reveals rest |
+| Sort | Easiest-first within each language filter |
+| "Show me how →" | Per-card expand with 5-step fork-to-PR recipe |
+| Encouraging banner | "You don't need to know how to code yet" — dismissible, `localStorage` key `gs:banner:dismissed` |
+| Glossary | 📖 button opens overlay with 10 open-source terms explained in plain English |
+| Plain-language labels | "documentation" → "Fix docs", "bug" → "Fix a bug", etc. (real term in `title` tooltip) |
+| Error messages | Friendly rate-limit and API failure messages |
+| Fallback repos | 3 beginner repos shown on any fetch failure (first-contributions, awesome-for-beginners, free-for-dev) |
+| Cache | `sessionStorage` key `gs:<lang>`, 10-min TTL |
+| Escape / Back | Both return to demo mode |
+
+### Bug fix (found during testing)
+
+| Bug | File | Fix |
+|-----|------|-----|
+| `runLoop()` didn't guard against `getting-started` mode | `app.js:375` | Added `if (mode === 'getting-started') return;` at top and inside loop — prevented 800ms boot timer from overriding the GS view |
+
+### Test status
+
+Scaffold test (`/tmp/fork-personas/test-gs-scaffold.mjs`) — 10/10 checks pass:
+- navGetStarted found, aria-pressed=false initially
+- gsStartLink found
+- gsView hidden initially
+- Phase becomes getting-started on click
+- gsView visible, aria-pressed=true
+- 7 chips found
+- "Fix typos & docs" chip active by default
+- Status shows "Finding beginner-friendly issues…"
+- Back button found
+- Returns to empty on back click · no console errors
+
+---
+
+## What was done in previous sessions
 
 ### Bug fixes applied
 
