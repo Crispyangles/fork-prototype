@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.github.com; img-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none';">
+  <meta name="referrer" content="no-referrer">
+  <title>Fork — don't reinvent. re-fork.</title>
+  <meta name="description" content="Beautiful research tool for builders. Type any topic, see what exists on GitHub, find your unmet niche.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-phase="empty">
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2.5"/>
+          <circle cx="6" cy="18" r="2.5"/>
+          <circle cx="18" cy="12" r="2.5"/>
+          <path d="M8.5 6 H 13.5 A 2 2 0 0 1 15.5 8 V 11"/>
+          <path d="M8.5 18 H 13.5 A 2 2 0 0 0 15.5 16 V 13"/>
+        </svg>
+      </span>
+      <span class="brand-name">Fork</span>
+      <span class="brand-tag">don't reinvent. re-fork.</span>
+    </div>
+    <nav class="ghostnav">
+      <span class="mode-badge" id="modeBadge">live</span>
+      <span class="ghostnav-item">Searches</span>
+      <span class="ghostnav-item">Shed</span>
+      <span class="ghostnav-item">Settings</span>
+      <span class="ghostnav-avatar">@crispyangles</span>
+    </nav>
+  </header>
+
+  <section class="search-hero" id="searchHero">
+    <h1 class="search-prompt">What are you researching?</h1>
+    <div class="search-input">
+      <span class="search-icon" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="7" cy="7" r="5"/>
+          <line x1="11" y1="11" x2="14.5" y2="14.5"/>
+        </svg>
+      </span>
+      <input
+        class="search-input-real"
+        id="searchInput"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        autocapitalize="off"
+        placeholder="try: ai screenshot tools · menubar utilities · rag implementations"
+        aria-label="What are you researching?">
+      <kbd class="search-enter-hint" id="searchEnterHint" aria-hidden="true">↵</kbd>
+    </div>
+    <ul class="search-history" id="searchHistory" role="listbox" aria-label="Recent searches" hidden></ul>
+    <div class="search-status" id="searchStatus" aria-live="polite"></div>
+  </section>
+
+  <main class="stage" id="stage">
+    <!-- Filter bar — visible once we have results to filter -->
+    <div class="filters" id="filters" aria-hidden="true">
+      <div class="filter-group" data-group="stars">
+        <span class="filter-label">Stars</span>
+        <button class="filter-pill is-active" type="button" data-stars="0">All</button>
+        <button class="filter-pill" type="button" data-stars="100">100+</button>
+        <button class="filter-pill" type="button" data-stars="1000">1k+</button>
+        <button class="filter-pill" type="button" data-stars="10000">10k+</button>
+      </div>
+      <div class="filter-group" data-group="language" id="languageFilters">
+        <span class="filter-label">Language</span>
+        <button class="filter-pill is-active" type="button" data-language="all">All</button>
+        <!-- Additional language pills injected by app.js based on visible cards -->
+      </div>
+      <button class="filter-clear" type="button" id="filterClear" hidden>Clear</button>
+    </div>
+
+    <div class="cluster-headers" id="clusterHeaders" aria-hidden="true">
+      <div class="cluster-header" data-cluster="mac-apps">
+        <span class="cluster-dot" style="--dot:#fa7343"></span>
+        <span class="cluster-label">Mac apps</span>
+        <span class="cluster-count" data-cluster-count="mac-apps">5</span>
+      </div>
+      <div class="cluster-header" data-cluster="cli">
+        <span class="cluster-dot" style="--dot:#3ec5c5"></span>
+        <span class="cluster-label">CLI tools</span>
+        <span class="cluster-count" data-cluster-count="cli">3</span>
+      </div>
+      <div class="cluster-header" data-cluster="browser-ext">
+        <span class="cluster-dot" style="--dot:#f5a93a"></span>
+        <span class="cluster-label">Browser extensions</span>
+        <span class="cluster-count" data-cluster-count="browser-ext">4</span>
+      </div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <button class="btn btn-ghost load-more" type="button" id="loadMore" hidden>Load 30 more</button>
+
+    <div class="filter-empty" id="filterEmpty" hidden>
+      <div class="filter-empty-title">No repos match these filters</div>
+      <div class="filter-empty-body">Try loosening the stars or language filter.</div>
+      <button class="btn btn-primary" type="button" id="filterEmptyClear">Clear filters</button>
+    </div>
+
+    <aside class="pain-panel" id="painPanel" aria-hidden="true">
+      <header class="pain-header">
+        <span class="pain-icon" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1 L8 9"/><circle cx="8" cy="13" r="0.8" fill="currentColor"/></svg>
+        </span>
+        <span class="pain-title">Top complaints</span>
+        <span class="pain-meta">across 412 issues</span>
+      </header>
+      <ul class="pain-list" id="painList"></ul>
+    </aside>
+
+    <div class="climax" id="climax" aria-hidden="true">
+      <div class="climax-card climax-gap" id="gapCard">
+        <span class="climax-eyebrow">Synthesis</span>
+        <h2 class="climax-title" id="gapTitle"></h2>
+        <p class="climax-body" id="gapBody"></p>
+      </div>
+
+      <div class="climax-card climax-remix" id="remixCard">
+        <span class="climax-eyebrow">Build this</span>
+        <h2 class="climax-title" id="remixTitle"></h2>
+        <p class="climax-oneliner" id="remixOneliner"></p>
+        <p class="climax-body" id="remixBody"></p>
+        <div class="climax-actions">
+          <button class="btn btn-primary" type="button" id="saveToShedBtn">Save to shed</button>
+          <button class="btn btn-ghost" type="button" id="generateSpecBtn">Generate spec →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discover overlay: shows trending opportunity cards (separate mode) -->
+    <section class="discover" id="discover" aria-hidden="true">
+      <header class="discover-header">
+        <span class="discover-eyebrow">Discover</span>
+        <h2 class="discover-title" id="discoverTitle"></h2>
+        <p class="discover-subtitle" id="discoverSubtitle"></p>
+      </header>
+      <div class="discover-cards" id="discoverCards"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Fork v0 · prototype · auto-loops</span>
+  </footer>
+
+  <div class="overlay" id="overlay" hidden aria-hidden="true">
+    <div class="overlay-backdrop" id="overlayBackdrop"></div>
+    <div class="overlay-panel" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+      <header class="overlay-header">
+        <h2 class="overlay-title" id="overlayTitle"></h2>
+        <button class="overlay-close" id="overlayClose" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="overlay-body" id="overlayBody"></div>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="data/fake-repos.js?v=14"></script>
+  <script src="app.js?v=14"></script>
+</body>
+</html>
