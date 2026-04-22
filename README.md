@@ -5,7 +5,7 @@
 **A beautiful research tool for builders.**  
 Type any topic → see what's already on GitHub → find the niche nobody's filling.
 
-▶ **[Try it live](https://<USERNAME>.github.io/fork-prototype)** &nbsp;·&nbsp; [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](LICENSE)
+▶ **[Try it live](https://crispyangles.github.io/fork-prototype)** &nbsp;·&nbsp; [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](LICENSE)
 
 <br>
 
@@ -27,12 +27,12 @@ It runs as a 30-second animated demo loop out of the box. Click the search bar a
 
 ## Try it
 
-**Live demo:** `https://<USERNAME>.github.io/fork-prototype`
+**Live demo:** `https://crispyangles.github.io/fork-prototype`
 
 **Or run locally — no install needed:**
 
 ```bash
-git clone https://github.com/<USERNAME>/fork-prototype
+git clone https://github.com/crispyangles/fork-prototype
 cd fork-prototype
 npx serve .          # or: python3 -m http.server 8080
 # open http://localhost:8080
