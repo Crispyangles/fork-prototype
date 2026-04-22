@@ -1456,6 +1456,7 @@
   let gsCurrentLang = 'docs';
   let gsAllIssues = [];
   let gsInflight = false;
+  let gsPendingLang = null;
 
   const GS_INITIAL_CAP = 8;
 
@@ -1499,7 +1500,13 @@
   }
 
   async function loadGSIssues(lang) {
-    if (gsInflight) return;
+    if (gsInflight) {
+      gsPendingLang = lang;
+      document.querySelectorAll('.gs-chip').forEach((c) =>
+        c.classList.toggle('is-active', c.dataset.gslang === lang));
+      return;
+    }
+    gsPendingLang = null;
     gsInflight = true;
     gsCurrentLang = lang;
     gsAllIssues = [];
@@ -1579,6 +1586,11 @@
       }
     } finally {
       gsInflight = false;
+      if (gsPendingLang && gsPendingLang !== gsCurrentLang) {
+        const next = gsPendingLang;
+        gsPendingLang = null;
+        loadGSIssues(next);
+      }
     }
   }
 
