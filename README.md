@@ -21,8 +21,6 @@ Fork is a single-page research tool that turns GitHub into a market-research lay
 
 It runs as a 30-second animated demo loop out of the box. Click the search bar at any point and it switches to live GitHub search.
 
-<!-- TODO: user fill this in — 2 sentences about why you built this and what itch it scratches -->
-
 ---
 
 ## Try it

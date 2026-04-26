@@ -490,14 +490,27 @@
   const MAX_PAGE = 5; // cap at 150 repos to respect anonymous rate limits
 
   async function fetchGitHub(query, page = 1) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw new Error("You appear to be offline. Reconnect and try again.");
+    }
     const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=${PER_PAGE}&page=${page}`;
-    const resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    let resp;
+    try {
+      resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    } catch {
+      throw new Error("Couldn't reach GitHub. Check your connection and try again.");
+    }
     if (!resp.ok) {
       if (resp.status === 403) throw new Error('GitHub rate limit hit (60 req/hr). Wait a few minutes and try again.');
       if (resp.status === 422) throw new Error('That query confused GitHub. Try simpler keywords.');
       throw new Error(`GitHub API error (${resp.status}). Try again in a moment.`);
     }
-    const data = await resp.json();
+    let data;
+    try {
+      data = await resp.json();
+    } catch {
+      throw new Error("GitHub returned something we couldn't parse. Try again in a moment.");
+    }
     return (data.items || []).map(mapApiRepo);
   }
 
@@ -1147,14 +1160,27 @@
   async function fetchGSIssues(lang) {
     const cached = gsGetCache(lang);
     if (cached) return cached;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw new Error('offline');
+    }
     const q = buildGSQuery(lang);
     const url = `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&sort=updated&order=desc&per_page=40`;
-    const resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    let resp;
+    try {
+      resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    } catch {
+      throw new Error('network');
+    }
     if (!resp.ok) {
       if (resp.status === 403) throw new Error('rate-limit');
       throw new Error(`GitHub API error (${resp.status})`);
     }
-    const json = await resp.json();
+    let json;
+    try {
+      json = await resp.json();
+    } catch {
+      throw new Error('parse');
+    }
     const items = (json.items || []).filter((item) => {
       if (Date.now() - new Date(item.created_at).getTime() > GS_MAX_AGE) return false;
       if (!item.body || item.body.trim().length < 50) return false;
@@ -1281,22 +1307,35 @@
     return { concepts: concepts.slice(0, 3), browserFixable: isDocsy && !hasCodeSignal };
   }
 
-  // Track concepts opened — stored for a future progress view
+  // Track concepts opened — stored for a future progress view.
+  // Prune to the 50 most-recent so the entry can't grow without bound.
   function logConceptView(conceptName) {
     try {
       const key = 'gs:concepts:viewed';
-      const seen = JSON.parse(localStorage.getItem(key) || '{}');
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const seen = (parsed && typeof parsed === 'object') ? parsed : {};
       seen[conceptName] = Date.now();
-      localStorage.setItem(key, JSON.stringify(seen));
+      const entries = Object.entries(seen);
+      if (entries.length > 50) {
+        const trimmed = entries.sort((a, b) => b[1] - a[1]).slice(0, 50);
+        localStorage.setItem(key, JSON.stringify(Object.fromEntries(trimmed)));
+      } else {
+        localStorage.setItem(key, JSON.stringify(seen));
+      }
     } catch {}
   }
 
   // ----- Map raw API issue to display object ---------------------------
   function mapGSIssue(item) {
+    if (!item || typeof item.html_url !== 'string' || typeof item.title !== 'string') return null;
     const parts = item.html_url.split('/');
     const owner = parts[3] || '';
     const name  = parts[4] || '';
-    const labelNames = (item.labels || []).map((l) => l.name.toLowerCase());
+    if (!owner || !name) return null;
+    const labelNames = (item.labels || [])
+      .map((l) => (l && typeof l.name === 'string') ? l.name.toLowerCase() : '')
+      .filter(Boolean);
 
     if (labelNames.some((l) => /advanced|breaking.change|major.release/i.test(l))) return null;
 
@@ -1325,7 +1364,7 @@
       'ui': 'UI fix', 'design': 'Design', 'test': 'Add tests', 'testing': 'Add tests',
     };
     const labels = (item.labels || [])
-      .filter((l) => !/good.first.issue/i.test(l.name))
+      .filter((l) => l && typeof l.name === 'string' && !/good.first.issue/i.test(l.name))
       .slice(0, 3)
       .map((l) => ({ display: LABEL_MAP[l.name.toLowerCase()] || l.name, real: l.name }));
 
@@ -1578,9 +1617,14 @@
     } catch (err) {
       if (gsStatusEl) gsStatusEl.textContent = '';
       if (gsErrorEl && gsErrorMsgEl) {
-        gsErrorMsgEl.textContent = err.message === 'rate-limit'
-          ? 'GitHub asked us to slow down. Try again in a few minutes — or click the link below to browse directly.'
+        const tag = err && err.message;
+        const msg =
+          tag === 'rate-limit' ? 'GitHub asked us to slow down. Try again in a few minutes — or click the link below to browse directly.'
+          : tag === 'offline'  ? "You appear to be offline. Reconnect, then try again — meanwhile, here are some great repos to start with:"
+          : tag === 'network'  ? "Couldn't reach GitHub. Check your connection and try again — meanwhile, here are some great repos to start with:"
+          : tag === 'parse'    ? "GitHub returned something we couldn't parse. Try again in a moment — meanwhile, here are some great repos to start with:"
           : "Couldn't load issues right now. Here are some great repos to start with:";
+        gsErrorMsgEl.textContent = msg;
         gsErrorEl.hidden = false;
         showGSFallback();
       }

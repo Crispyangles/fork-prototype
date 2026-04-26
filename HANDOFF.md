@@ -1,6 +1,6 @@
 # Handoff — Fork prototype
-**Date:** 2026-04-21
-**Status:** Getting Started feature complete. One active bug: language chip switching is broken while an in-flight fetch is running. Ready for that fix, then push to GitHub.
+**Date:** 2026-04-26
+**Status:** Getting Started feature complete. Language-chip switching bug fixed (pending-lang queue pattern). Ready to push to GitHub.
 
 ---
 
@@ -26,72 +26,14 @@ Open: `http://localhost:8000/index.html`
 
 ---
 
-## 🔴 ACTIVE BUG — Language chips don't respond to clicks
+## ✅ Resolved — Language chip switching during in-flight fetch
 
-### Symptoms
-Open Getting Started mode → the "Documentation" chip loads and shows issues. Click any other chip (JavaScript, Python, etc.) → nothing happens. The active chip stays on docs, and the status text doesn't change.
+The pending-lang queue pattern is implemented in `app.js`:
+- `gsPendingLang` declared alongside `gsInflight` (~line 1459).
+- `loadGSIssues(lang)` queues the requested lang and updates the active chip class immediately when a fetch is already in flight (~line 1503).
+- The `finally` block fires the queued lang after the in-flight request completes (~line 1620).
 
-### Root cause
-`app.js` line 1502:
-```js
-async function loadGSIssues(lang) {
-  if (gsInflight) return;   // ← THIS IS THE BUG
-```
-
-When the page enters GS mode, `loadGSIssues('docs')` is called immediately. `gsInflight` is set to `true` at line 1503. The GitHub API fetch takes 1–3 seconds. Any chip click during that window hits the guard and silently returns — no UI feedback, no queuing, no response.
-
-`gsInflight` is reset in the `finally` block at line 1581 — but by then the user has already given up thinking the chips are broken.
-
-**Repro steps:**
-1. Open `http://localhost:8000/index.html`
-2. Click "Get started" in the nav (or "New to open source? Start here →")
-3. Immediately (within ~2 seconds) click the "JavaScript" chip
-4. Nothing happens — active chip stays on "Documentation"
-
-If you **wait ~3 seconds** and THEN click a chip, it works fine.
-
-### Recommended fix (AbortController approach)
-Replace the silent `return` with AbortController so clicking a chip cancels the in-flight request and starts the new one:
-
-```js
-// Add near the gsInflight declaration (around line 1458):
-let gsAbortController = null;
-
-// Replace the top of loadGSIssues with:
-async function loadGSIssues(lang) {
-  // Cancel any in-flight request
-  if (gsAbortController) gsAbortController.abort();
-  gsAbortController = new AbortController();
-  gsInflight = true;
-  // ... rest unchanged ...
-  // In fetchGSIssues, pass signal: gsAbortController.signal to fetch()
-  // Catch AbortError separately — just return without showing error UI
-}
-```
-
-Alternative simpler fix (pending-lang pattern):
-```js
-let gsPendingLang = null;   // declare alongside gsInflight
-
-async function loadGSIssues(lang) {
-  if (gsInflight) {
-    gsPendingLang = lang;
-    // Give immediate visual feedback
-    document.querySelectorAll('.gs-chip').forEach(c =>
-      c.classList.toggle('is-active', c.dataset.gslang === lang));
-    return;
-  }
-  // ... rest unchanged ...
-  } finally {
-    gsInflight = false;
-    if (gsPendingLang && gsPendingLang !== gsCurrentLang) {
-      const next = gsPendingLang;
-      gsPendingLang = null;
-      loadGSIssues(next);
-    }
-  }
-}
-```
+If chip switching ever regresses, run `node /tmp/fork-personas/test-tabs-debug.mjs` to confirm.
 
 ---
 
@@ -169,7 +111,7 @@ Each card has:
 | `mapGSIssue()` | ~1310 |
 | `createGSCard()` | ~1340 |
 | `applyGSLayout()` | ~1420 |
-| `loadGSIssues()` | ~1501 **← tabs bug here** |
+| `loadGSIssues()` | ~1501 |
 | `enterGettingStarted()` / `exitGettingStarted()` | ~1586 |
 | Chip event listeners | ~1619 |
 
@@ -186,13 +128,11 @@ node test-learn-fix.mjs        # 6 checks for "Before you start" toggle
 node test-tabs-debug.mjs       # diagnostic: confirms chips receive clicks but gsInflight blocks them
 ```
 
-The tabs debug test was used to confirm the `gsInflight` root cause. Key output:
-```
-Active before click: [docs]
-Active after  click: [docs]      ← no change
-Chip click worked: NO ✗ — no change
-.gs-lang-chips computed: { pointerEvents: 'auto' }   ← CSS is fine, not a z-index issue
-```
+`test-tabs-debug.mjs` was originally written to diagnose the `gsInflight`
+chip-blocking bug. After the pending-lang queue fix, it serves as a
+regression check — clicking a chip while a fetch is in flight should now
+update the active chip class immediately and fire the queued fetch in
+`finally`.
 
 ---
 
@@ -213,7 +153,7 @@ Chip click worked: NO ✗ — no change
 | sessionStorage cache (10-min TTL) | ✅ |
 | Fallback repos on API failure | ✅ |
 | Show 8 / reveal N more | ✅ |
-| Chip switching works | ❌ **BROKEN — see Active Bug above** |
+| Chip switching works | ✅ |
 
 ---
 
@@ -247,7 +187,6 @@ gh repo edit fork-prototype --visibility public
 
 ## Next steps (in order)
 
-1. **Fix the tabs bug** — `app.js` line 1502, `loadGSIssues()`, replace silent `return` (see fix options above)
-2. **Commit** the fix: `git commit -m "fix: chip switching works during in-flight fetch"`
-3. **Run** `node /tmp/fork-personas/test-gs-scaffold.mjs` and `node /tmp/fork-personas/test-tabs-debug.mjs` to confirm
-4. **Push** to GitHub when ready (`gh` CLI install + steps above)
+1. **Run** `node /tmp/fork-personas/test-gs-scaffold.mjs` and `node /tmp/fork-personas/test-tabs-debug.mjs` to confirm chip switching still works.
+2. **Push** to GitHub when ready (`gh` CLI install + steps above).
+3. **Fill in README** "Why I built this" section.
